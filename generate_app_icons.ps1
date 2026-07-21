@@ -1,8 +1,8 @@
 Add-Type -AssemblyName System.Drawing
 
-$sourcePath = "d:\BestBill-Offline\frontend\public\logo.png"
+$sourcePath = "d:\BestBill-Offline\Bestbill_admin.jpeg"
 if (!(Test-Path $sourcePath)) {
-    Write-Error "Source logo.png not found at $sourcePath"
+    Write-Error "Source Bestbill_admin.jpeg not found at $sourcePath"
     exit 1
 }
 

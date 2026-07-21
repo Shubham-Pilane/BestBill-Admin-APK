@@ -32,6 +32,14 @@ export default function Dashboard({ session, onLogout }) {
 
   const [aggregatedTopItems, setAggregatedTopItems] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 4000);
+  };
 
   // Fetch registered hotels for this owner
   const fetchHotels = useCallback(async () => {
@@ -187,11 +195,35 @@ export default function Dashboard({ session, onLogout }) {
 
   const handleExportPdf = async () => {
     setIsExporting(true);
+    
+    // Defer execution slightly to let React repaint the UI with "Generating PDF..." loading state
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    
     const hotelObj = hotels.find((h) => h.hotel_code === selectedHotelCode);
     const hotelName = selectedHotelCode === 'ALL' ? 'All Hotels Combined' : (hotelObj ? hotelObj.hotel_name : selectedHotelCode);
     const dateText = `${startDate} to ${endDate}`;
-    await exportAnalyticsPdf('pdf-report-container', 'Analytics Report', dateText, hotelName);
-    setIsExporting(false);
+    
+    const reportData = {
+      hotelName,
+      dateRangeText: dateText,
+      summary,
+      topItems: aggregatedTopItems,
+      chartData // pass in case we need to calculate anything else
+    };
+
+    try {
+      const success = await exportAnalyticsPdf(reportData);
+      if (success) {
+        showToast('PDF downloaded successfully.', 'success');
+      } else {
+        showToast('Failed to generate PDF.', 'error');
+      }
+    } catch (err) {
+      console.error('PDF generation crash:', err);
+      showToast('Error generating PDF.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const selectedHotelName = selectedHotelCode === 'ALL' 
@@ -274,6 +306,31 @@ export default function Dashboard({ session, onLogout }) {
         <TopItemsTable topItems={aggregatedTopItems} />
 
       </div>
+
+      {/* Floating Toast Notification */}
+      {toast.show && (
+        <div className="animate-fade-in" style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: toast.type === 'success' ? 'var(--emerald-primary)' : 'var(--rose-primary)',
+          color: '#ffffff',
+          padding: '12px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontWeight: 700,
+          fontSize: '14px',
+          pointerEvents: 'none',
+          border: '1px solid rgba(255, 255, 255, 0.15)'
+        }}>
+          {toast.type === 'success' ? '✓' : '✗'} {toast.message}
+        </div>
+      )}
 
     </div>
   );

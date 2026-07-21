@@ -1,0 +1,8 @@
+{
+  "appId": "com.bestbill.admin",
+  "appName": "BestBill Admin",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

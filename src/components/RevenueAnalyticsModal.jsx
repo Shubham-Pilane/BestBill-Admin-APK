@@ -472,22 +472,22 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
           <div style={{
             background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%)',
             border: '1px solid rgba(16, 185, 129, 0.3)',
-            borderRadius: '14px',
-            padding: '16px 20px',
+            borderRadius: '12px',
+            padding: '10px 14px',
             color: 'var(--text-primary)',
-            fontSize: '14px',
+            fontSize: '13px',
             fontWeight: 600,
-            lineHeight: '1.6',
+            lineHeight: '1.5',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px'
+            gap: '10px'
           }}>
             <div style={{
-              width: '10px',
-              height: '10px',
+              width: '8px',
+              height: '8px',
               borderRadius: '50%',
               backgroundColor: 'var(--emerald-primary)',
-              boxShadow: '0 0 10px var(--emerald-primary)',
+              boxShadow: '0 0 8px var(--emerald-primary)',
               flexShrink: 0
             }}></div>
             <div>
@@ -495,91 +495,98 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
             </div>
           </div>
 
-          {/* Summary Cards Grid */}
+          {/* Summary Cards Grid (2x2 Compact on Mobile) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-            gap: '12px'
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '8px'
           }}>
             {/* Total Revenue */}
-            <div className="glass-card" style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-accent)' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            <div className="glass-card" style={{ padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-accent)' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 Total Revenue
               </span>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--emerald-primary)', marginTop: '4px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--emerald-primary)', marginTop: '2px', margin: 0 }}>
                 ₹{summary.total_revenue.toLocaleString('en-IN')}
               </h3>
             </div>
 
             {/* Cash Collection */}
-            <div className="glass-card" style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-accent)' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            <div className="glass-card" style={{ padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-accent)' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 Cash Collection
               </span>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px', margin: 0 }}>
                 ₹{summary.cash_collection.toLocaleString('en-IN')}
               </h3>
             </div>
 
             {/* Online Collection */}
-            <div className="glass-card" style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-accent)' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            <div className="glass-card" style={{ padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-accent)' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 Online Collection
               </span>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--cyan-primary)', marginTop: '4px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--cyan-primary)', marginTop: '2px', margin: 0 }}>
                 ₹{summary.online_collection.toLocaleString('en-IN')}
               </h3>
             </div>
 
             {/* Total Days */}
-            <div className="glass-card" style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-accent)' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Total Days Included
+            <div className="glass-card" style={{ padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-accent)' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                Total Days
               </span>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--indigo-primary)', marginTop: '4px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--indigo-primary)', marginTop: '2px', margin: 0 }}>
                 {summary.total_days} Days
               </h3>
             </div>
           </div>
 
+          {/* Section Heading for Daily Breakdown */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              📊 Daily Sales Breakdown ({summary.total_days} Days)
+            </span>
+          </div>
+
           {/* Daily Revenue Table */}
-          <div className="glass-card" style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+          <div className="glass-card" style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
                 <thead>
                   <tr style={{ background: 'var(--bg-accent)' }}>
-                    <th style={{ padding: '12px 16px' }}>Date</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Cash Collection</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Online Collection</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Total Revenue</th>
+                    <th style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontSize: '11px' }}>Date</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '11px' }}>Cash Coll.</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '11px' }}>Online Coll.</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '11px' }}>Total Revenue</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '13px' }}>
                         Loading analytics data...
                       </td>
                     </tr>
                   ) : paginatedRows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '13px' }}>
                         No billing records found for the selected date range.
                       </td>
                     </tr>
                   ) : (
                     paginatedRows.map((row) => (
                       <tr key={row.date} style={{ transition: 'background 0.15s ease' }}>
-                        <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', fontSize: '12px' }}>
                           {row.formattedDate}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '12px' }}>
                           ₹{row.cash_collection.toLocaleString('en-IN')}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '12px' }}>
                           ₹{row.online_collection.toLocaleString('en-IN')}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 800, color: 'var(--emerald-primary)' }}>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: 'var(--emerald-primary)', whiteSpace: 'nowrap', fontSize: '12px' }}>
                           ₹{row.total_revenue.toLocaleString('en-IN')}
                         </td>
                       </tr>
@@ -595,11 +602,11 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '12px 16px',
+                padding: '10px 12px',
                 borderTop: '1px solid var(--border-color)',
                 background: 'var(--bg-card)',
                 flexWrap: 'wrap',
-                gap: '10px'
+                gap: '8px'
               }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
                   Showing {Math.min((currentPage - 1) * rowsPerPage + 1, dailyRows.length)} to {Math.min(currentPage * rowsPerPage, dailyRows.length)} of {dailyRows.length} entries

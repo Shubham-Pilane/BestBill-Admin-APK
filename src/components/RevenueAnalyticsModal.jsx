@@ -302,7 +302,7 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(5, 8, 15, 0.85)',
+      backgroundColor: 'var(--modal-overlay-bg)',
       backdropFilter: 'blur(10px)',
       zIndex: 9999,
       display: 'flex',

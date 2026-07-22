@@ -84,10 +84,10 @@ export default function DateFilter({
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             onClick={onOpenRevenueAnalytics}
-            className="btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', padding: '9px 16px' }}
+            className="btn-analytics"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
           >
-            <TrendingUp size={16} color="var(--emerald-primary)" />
+            <TrendingUp size={16} color="#ffffff" />
             Revenue Analytics
           </button>
 

@@ -16,6 +16,17 @@ export default function Dashboard({ session, onLogout }) {
   const [activeFilter, setActiveFilter] = useState('today');
   const [isRevenueAnalyticsOpen, setIsRevenueAnalyticsOpen] = useState(false);
   
+  const [theme, setTheme] = useState(() => localStorage.getItem('bestbill_admin_theme') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('bestbill_admin_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+  
   const todayStr = new Date().toISOString().slice(0, 10);
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
@@ -272,6 +283,8 @@ export default function Dashboard({ session, onLogout }) {
         onLogout={onLogout}
         onRefresh={fetchAnalyticsSnapshots}
         loading={loading}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Date Filter & PDF / Analytics Triggers */}

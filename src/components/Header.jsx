@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, LogOut, RefreshCw } from 'lucide-react';
+import { Building2, LogOut, RefreshCw, Sun, Moon } from 'lucide-react';
 
 export default function Header({ 
   hotels, 
@@ -7,7 +7,9 @@ export default function Header({
   onSelectHotel, 
   onLogout, 
   onRefresh, 
-  loading 
+  loading,
+  theme,
+  onToggleTheme
 }) {
   const isMultiHotel = hotels.length > 1;
   const singleHotel = hotels.length === 1 ? hotels[0] : null;
@@ -41,9 +43,43 @@ export default function Header({
             </div>
           </div>
 
-          {/* Quick Header Actions: Refresh & Logout */}
+          {/* Quick Header Actions: Theme Toggle, Refresh & Logout */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            {/* Refresh Button with instant rotation animation */}
+            
+            {/* Theme Toggle Button */}
+            <button 
+              onClick={onToggleTheme} 
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              style={{ 
+                padding: '8px 12px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px',
+                backgroundColor: 'var(--bg-accent)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun size={16} color="var(--amber-primary)" />
+                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={16} color="var(--indigo-primary)" />
+                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Dark</span>
+                </>
+              )}
+            </button>
+
+            {/* Refresh Button */}
             <button 
               onClick={onRefresh} 
               disabled={loading}

@@ -30,6 +30,13 @@ export default function DateFilter({
           </button>
 
           <button
+            onClick={() => onChangeFilter('yesterday')}
+            className={`filter-pill ${activeFilter === 'yesterday' ? 'active' : ''}`}
+          >
+            ⏪ Yesterday
+          </button>
+
+          <button
             onClick={() => onChangeFilter('week')}
             className={`filter-pill ${activeFilter === 'week' ? 'active' : ''}`}
           >
@@ -37,10 +44,24 @@ export default function DateFilter({
           </button>
 
           <button
+            onClick={() => onChangeFilter('last_week')}
+            className={`filter-pill ${activeFilter === 'last_week' ? 'active' : ''}`}
+          >
+            ⏮️ Last Week
+          </button>
+
+          <button
             onClick={() => onChangeFilter('month')}
             className={`filter-pill ${activeFilter === 'month' ? 'active' : ''}`}
           >
             🗓️ Monthly
+          </button>
+
+          <button
+            onClick={() => onChangeFilter('last_month')}
+            className={`filter-pill ${activeFilter === 'last_month' ? 'active' : ''}`}
+          >
+            🔙 Last Month
           </button>
 
           <button

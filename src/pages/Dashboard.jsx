@@ -5,6 +5,7 @@ import DateFilter from '../components/DateFilter';
 import MetricsCards from '../components/MetricsCards';
 import TopItemsTable from '../components/TopItemsTable';
 import { exportAnalyticsPdf } from '../utils/pdfExporter';
+import { getCachedSnapshots, saveSnapshotsToCache } from '../utils/localCache';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 
@@ -71,12 +72,29 @@ export default function Dashboard({ session, onLogout }) {
     if (activeFilter === 'today') {
       s = now;
       e = now;
+    } else if (activeFilter === 'yesterday') {
+      const y = new Date();
+      y.setDate(now.getDate() - 1);
+      s = y;
+      e = y;
     } else if (activeFilter === 'week') {
       s.setDate(now.getDate() - 6);
       e = now;
+    } else if (activeFilter === 'last_week') {
+      const lwStart = new Date();
+      lwStart.setDate(now.getDate() - 13);
+      const lwEnd = new Date();
+      lwEnd.setDate(now.getDate() - 7);
+      s = lwStart;
+      e = lwEnd;
     } else if (activeFilter === 'month') {
       s.setDate(now.getDate() - 29);
       e = now;
+    } else if (activeFilter === 'last_month') {
+      const lmStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      s = lmStart;
+      e = lmEnd;
     } else if (activeFilter === 'year') {
       s.setMonth(now.getMonth() - 11);
       e = now;
@@ -88,10 +106,78 @@ export default function Dashboard({ session, onLogout }) {
     }
   }, [activeFilter]);
 
-  // Fetch Analytics Snapshots from Supabase
+  // Helper to deduplicate & aggregate snapshot metrics for state
+  const processSnapshotsData = useCallback((rawRows) => {
+    const latestMap = {};
+    (rawRows || []).forEach((snap) => {
+      const key = `${snap.hotel_code}_${snap.snapshot_date}`;
+      if (!latestMap[key] || new Date(snap.synced_at || snap.created_at) > new Date(latestMap[key].synced_at || latestMap[key].created_at)) {
+        latestMap[key] = snap;
+      }
+    });
+    const rows = Object.values(latestMap);
+    setSnapshots(rows);
+
+    let rev = 0, ord = 0, cash = 0, online = 0, dine = 0, parcel = 0;
+    const itemsMap = {};
+    const chartMap = {};
+
+    rows.forEach((snap) => {
+      rev += Number(snap.total_revenue || 0);
+      ord += Number(snap.total_orders || 0);
+      cash += Number(snap.cash_collection || 0);
+      online += Number(snap.online_collection || 0);
+      dine += Number(snap.dine_in_sales || 0);
+      parcel += Number(snap.parcel_sales || 0);
+
+      const d = snap.snapshot_date;
+      chartMap[d] = (chartMap[d] || 0) + Number(snap.total_revenue || 0);
+
+      const items = Array.isArray(snap.top_items) ? snap.top_items : [];
+      items.forEach((it) => {
+        const name = it.item_name || it.name;
+        if (!name) return;
+        if (!itemsMap[name]) {
+          itemsMap[name] = { item_name: name, qty: 0, amount: 0 };
+        }
+        itemsMap[name].qty += Number(it.qty || it.quantity || 0);
+        itemsMap[name].amount += Number(it.amount || 0);
+      });
+    });
+
+    setSummary({
+      total_revenue: rev,
+      total_orders: ord,
+      cash_collection: cash,
+      online_collection: online,
+      dine_in_sales: dine,
+      parcel_sales: parcel
+    });
+
+    const sortedItems = Object.values(itemsMap)
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 10);
+    setAggregatedTopItems(sortedItems);
+
+    const formattedChart = Object.keys(chartMap).sort().map((d) => ({
+      date: d.slice(5),
+      revenue: chartMap[d]
+    }));
+    setChartData(formattedChart);
+  }, []);
+
+  // Fetch Analytics Snapshots from Supabase with instant IndexedDB local cache fallback
   const fetchAnalyticsSnapshots = useCallback(async () => {
     if (!supabase || !session) return;
-    setLoading(true);
+    
+    // 1. INSTANT DATA: Check IndexedDB local cache first (0ms latency!)
+    const cachedRows = await getCachedSnapshots(selectedHotelCode, startDate, endDate);
+    if (cachedRows && cachedRows.length > 0) {
+      processSnapshotsData(cachedRows);
+    } else {
+      setLoading(true);
+    }
+
     const startTime = Date.now();
 
     try {
@@ -111,79 +197,22 @@ export default function Dashboard({ session, onLogout }) {
 
       const rawRows = data || [];
       
-      // Deduplicate rows by hotel_code and snapshot_date (keep the latest synced row for each date)
-      const latestMap = {};
-      rawRows.forEach((snap) => {
-        const key = `${snap.hotel_code}_${snap.snapshot_date}`;
-        if (!latestMap[key] || new Date(snap.synced_at || snap.created_at) > new Date(latestMap[key].synced_at || latestMap[key].created_at)) {
-          latestMap[key] = snap;
-        }
-      });
-      const rows = Object.values(latestMap);
-      setSnapshots(rows);
+      // Save fetched records to IndexedDB local cache (auto-purges records older than 2 years)
+      await saveSnapshotsToCache(rawRows);
 
-      // Aggregate Metrics
-      let rev = 0, ord = 0, cash = 0, online = 0, dine = 0, parcel = 0;
-      const itemsMap = {};
-      const chartMap = {};
-
-      rows.forEach((snap) => {
-        rev += Number(snap.total_revenue || 0);
-        ord += Number(snap.total_orders || 0);
-        cash += Number(snap.cash_collection || 0);
-        online += Number(snap.online_collection || 0);
-        dine += Number(snap.dine_in_sales || 0);
-        parcel += Number(snap.parcel_sales || 0);
-
-        // Aggregate chart trends by date
-        const d = snap.snapshot_date;
-        chartMap[d] = (chartMap[d] || 0) + Number(snap.total_revenue || 0);
-
-        // Aggregate Top Items
-        const items = Array.isArray(snap.top_items) ? snap.top_items : [];
-        items.forEach((it) => {
-          const name = it.item_name || it.name;
-          if (!name) return;
-          if (!itemsMap[name]) {
-            itemsMap[name] = { item_name: name, qty: 0, amount: 0 };
-          }
-          itemsMap[name].qty += Number(it.qty || it.quantity || 0);
-          itemsMap[name].amount += Number(it.amount || 0);
-        });
-      });
-
-      setSummary({
-        total_revenue: rev,
-        total_orders: ord,
-        cash_collection: cash,
-        online_collection: online,
-        dine_in_sales: dine,
-        parcel_sales: parcel
-      });
-
-      // Sort Top Items by qty
-      const sortedItems = Object.values(itemsMap)
-        .sort((a, b) => b.qty - a.qty)
-        .slice(0, 10);
-      setAggregatedTopItems(sortedItems);
-
-      // Prepare Chart Data
-      const formattedChart = Object.keys(chartMap).map((d) => ({
-        date: d.slice(5),
-        revenue: chartMap[d]
-      }));
-      setChartData(formattedChart);
+      // Render fresh data
+      processSnapshotsData(rawRows);
 
     } catch (err) {
       console.error('Fetch snapshots error:', err.message);
     } finally {
       const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 750 - elapsed);
+      const remaining = Math.max(0, 200 - elapsed);
       setTimeout(() => {
         setLoading(false);
       }, remaining);
     }
-  }, [session, startDate, endDate, selectedHotelCode]);
+  }, [session, startDate, endDate, selectedHotelCode, processSnapshotsData]);
 
   useEffect(() => {
     fetchHotels();

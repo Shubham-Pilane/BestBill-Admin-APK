@@ -166,3 +166,163 @@ export async function exportAnalyticsPdf(reportData) {
     return false;
   }
 }
+
+export async function exportRevenueAnalyticsPdf(reportData) {
+  try {
+    const { hotelName, dateRangeText, summary, dailyRows } = reportData;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    
+    // 1. Header block
+    doc.setFillColor(30, 41, 59); // slate-800
+    doc.rect(0, 0, 210, 35, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text(hotelName, 15, 15);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text(`Period: ${dateRangeText}`, 15, 23);
+    doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 15, 29);
+
+    // Title badge
+    doc.setFillColor(16, 185, 129); // emerald-500
+    doc.rect(140, 10, 55, 12, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('REVENUE ANALYTICS', 143, 18);
+
+    // 2. Summary stats grid (Key Metrics)
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Revenue Overview', 15, 48);
+
+    const totalDaysStr = `${summary.total_days || 0} Days`;
+    doc.autoTable({
+      startY: 53,
+      head: [['Total Revenue', 'Cash Collection', 'Online Collection', 'Total Days']],
+      body: [[
+        `Rs. ${Number(summary.total_revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+        `Rs. ${Number(summary.cash_collection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+        `Rs. ${Number(summary.online_collection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+        totalDaysStr
+      ]],
+      theme: 'grid',
+      headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 10, halign: 'center', cellPadding: 5 }
+    });
+
+    // 3. Daily Revenue Breakdown Table
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Daily Revenue Breakdown', 15, doc.lastAutoTable.finalY + 14);
+
+    const tableBody = (dailyRows || []).map(row => [
+      row.formattedDate || row.date,
+      `Rs. ${Number(row.cash_collection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+      `Rs. ${Number(row.online_collection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+      `Rs. ${Number(row.total_revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+    ]);
+
+    // Add Grand Totals row
+    tableBody.push([
+      'Grand Total',
+      `Rs. ${Number(summary.cash_collection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+      `Rs. ${Number(summary.online_collection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+      `Rs. ${Number(summary.total_revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+    ]);
+
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 18,
+      head: [['Date', 'Cash Collection', 'Online Collection', 'Total Revenue']],
+      body: tableBody.length > 1 ? tableBody : [['No daily sales records found', '-', '-', '-']],
+      theme: 'striped',
+      headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+      columnStyles: {
+        0: { halign: 'left' },
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+        3: { halign: 'right', fontStyle: 'bold' }
+      },
+      styles: { fontSize: 9, cellPadding: 4 },
+      didParseCell: function(data) {
+        if (data.row.index === tableBody.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+          data.cell.styles.textColor = [15, 23, 42];
+        }
+      }
+    });
+
+    const cleanName = hotelName.replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = `BestBill_Revenue_Analytics_${cleanName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const pdfBlob = doc.output('blob');
+
+    if (Capacitor.isNativePlatform()) {
+      const reader = new FileReader();
+      reader.readAsDataURL(pdfBlob);
+      reader.onloadend = async () => {
+        const base64data = reader.result.split(',')[1];
+        try {
+          const writeResult = await Filesystem.writeFile({
+            path: `Download/${fileName}`,
+            data: base64data,
+            directory: Directory.ExternalStorage,
+            recursive: true
+          }).catch(async (e) => {
+            console.warn('ExternalStorage/Download blocked, fallback to Documents', e);
+            return await Filesystem.writeFile({
+              path: fileName,
+              data: base64data,
+              directory: Directory.Documents
+            });
+          });
+
+          const fileUri = writeResult.uri;
+          try {
+            await LocalNotifications.requestPermissions();
+            await LocalNotifications.schedule({
+              notifications: [
+                {
+                  title: 'Analytics PDF Downloaded',
+                  body: `Saved as ${fileName}`,
+                  id: Math.floor(Math.random() * 100000),
+                  schedule: { at: new Date(Date.now() + 1000) },
+                  smallIcon: 'ic_stat_icon_config_sample',
+                  extra: { fileUri: fileUri }
+                }
+              ]
+            });
+          } catch (notifErr) {
+            console.warn('Local Notification failed', notifErr);
+            alert(`PDF Downloaded successfully: ${fileName}`);
+          }
+        } catch (e) {
+          console.error('Capacitor File Error:', e);
+          alert('Error saving PDF: ' + e.message);
+        }
+      };
+      return true;
+    } else {
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      return true;
+    }
+  } catch (err) {
+    console.error('Revenue Analytics PDF Error:', err);
+    alert('Failed to generate Revenue Analytics PDF: ' + (err.message || err));
+    return false;
+  }
+}
+

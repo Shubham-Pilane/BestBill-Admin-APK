@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import DateFilter from '../components/DateFilter';
 import MetricsCards from '../components/MetricsCards';
 import TopItemsTable from '../components/TopItemsTable';
+import RevenueAnalyticsModal from '../components/RevenueAnalyticsModal';
 import { exportAnalyticsPdf } from '../utils/pdfExporter';
 import { getCachedSnapshots, saveSnapshotsToCache } from '../utils/localCache';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -13,6 +14,7 @@ export default function Dashboard({ session, onLogout }) {
   const [hotels, setHotels] = useState([]);
   const [selectedHotelCode, setSelectedHotelCode] = useState('ALL');
   const [activeFilter, setActiveFilter] = useState('today');
+  const [isRevenueAnalyticsOpen, setIsRevenueAnalyticsOpen] = useState(false);
   
   const todayStr = new Date().toISOString().slice(0, 10);
   const [startDate, setStartDate] = useState(todayStr);
@@ -272,7 +274,7 @@ export default function Dashboard({ session, onLogout }) {
         loading={loading}
       />
 
-      {/* Date Filter & PDF Trigger */}
+      {/* Date Filter & PDF / Analytics Triggers */}
       <DateFilter
         activeFilter={activeFilter}
         onChangeFilter={setActiveFilter}
@@ -282,6 +284,16 @@ export default function Dashboard({ session, onLogout }) {
         onChangeEndDate={setEndDate}
         onExportPdf={handleExportPdf}
         isExporting={isExporting}
+        onOpenRevenueAnalytics={() => setIsRevenueAnalyticsOpen(true)}
+      />
+
+      {/* Revenue Analytics Modal */}
+      <RevenueAnalyticsModal
+        isOpen={isRevenueAnalyticsOpen}
+        onClose={() => setIsRevenueAnalyticsOpen(false)}
+        selectedHotelCode={selectedHotelCode}
+        hotels={hotels}
+        session={session}
       />
 
       {/* Printable / Capturable Container */}

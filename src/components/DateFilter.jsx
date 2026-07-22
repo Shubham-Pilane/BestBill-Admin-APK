@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Download, Filter } from 'lucide-react';
+import { Calendar, Download, Filter, TrendingUp } from 'lucide-react';
 
 export default function DateFilter({
   activeFilter,
@@ -9,7 +9,8 @@ export default function DateFilter({
   onChangeStartDate,
   onChangeEndDate,
   onExportPdf,
-  isExporting
+  isExporting,
+  onOpenRevenueAnalytics
 }) {
   return (
     <div className="glass-card" style={{ padding: '16px', marginBottom: '20px' }}>
@@ -79,16 +80,27 @@ export default function DateFilter({
           </button>
         </div>
 
-        {/* Export PDF Button */}
-        <button
-          onClick={onExportPdf}
-          disabled={isExporting}
-          className="btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', padding: '9px 16px' }}
-        >
-          <Download size={16} />
-          {isExporting ? 'Generating PDF...' : 'Export PDF Report'}
-        </button>
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={onOpenRevenueAnalytics}
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', padding: '9px 16px' }}
+          >
+            <TrendingUp size={16} color="var(--emerald-primary)" />
+            Revenue Analytics
+          </button>
+
+          <button
+            onClick={onExportPdf}
+            disabled={isExporting}
+            className="btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', padding: '9px 16px' }}
+          >
+            <Download size={16} />
+            {isExporting ? 'Generating PDF...' : 'Export PDF Report'}
+          </button>
+        </div>
 
       </div>
 

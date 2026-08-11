@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, LogOut, RefreshCw, Sun, Moon } from 'lucide-react';
+import { Building2, LogOut, RefreshCw, Sun, Moon, Plus } from 'lucide-react';
 
 export default function Header({ 
   hotels, 
@@ -9,7 +9,8 @@ export default function Header({
   onRefresh, 
   loading,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  onAddHotel
 }) {
   const isMultiHotel = hotels.length > 1;
   const singleHotel = hotels.length === 1 ? hotels[0] : null;
@@ -43,9 +44,34 @@ export default function Header({
             </div>
           </div>
 
-          {/* Quick Header Actions: Theme Toggle, Refresh & Logout */}
+          {/* Quick Header Actions: Add Hotel, Theme Toggle, Refresh & Logout */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             
+            {/* Add Hotel Button */}
+            {onAddHotel && (
+              <button
+                onClick={onAddHotel}
+                title="Add New Hotel Code"
+                style={{
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  color: 'var(--emerald-primary)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Plus size={16} color="var(--emerald-primary)" />
+                <span style={{ fontSize: '12px' }}>Add Hotel</span>
+              </button>
+            )}
+
             {/* Theme Toggle Button */}
             <button 
               onClick={onToggleTheme} 

@@ -48,15 +48,32 @@ export default function App() {
     };
   }, []);
 
+  const hasValidAuthCodes = () => {
+    try {
+      const codes = JSON.parse(localStorage.getItem('bb_authorized_hotel_codes') || '[]');
+      return Array.isArray(codes) && codes.length > 0;
+    } catch (e) {
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (supabase) {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
+        if (session && hasValidAuthCodes()) {
+          setSession(session);
+        } else {
+          setSession(null);
+        }
         setInitializing(false);
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
+        if (session && hasValidAuthCodes()) {
+          setSession(session);
+        } else {
+          setSession(null);
+        }
         setInitializing(false);
       });
 
@@ -71,6 +88,7 @@ export default function App() {
       await supabase.auth.signOut().catch(() => {});
     }
     clearSupabaseSession();
+    localStorage.removeItem('bb_authorized_hotel_codes');
     setSession(null);
   };
 

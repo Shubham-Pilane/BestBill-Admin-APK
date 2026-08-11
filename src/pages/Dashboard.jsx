@@ -55,18 +55,40 @@ export default function Dashboard({ session, onLogout }) {
     }, 4000);
   };
 
-  // Fetch registered hotels for this owner
+  // Helper to read authorized Hotel Codes array from localStorage
+  const getAuthorizedCodes = useCallback(() => {
+    try {
+      return JSON.parse(localStorage.getItem('bb_authorized_hotel_codes') || '[]');
+    } catch (e) {
+      return [];
+    }
+  }, []);
+
+  // Add Hotel Modal State
+  const [showAddHotelPassModal, setShowAddHotelPassModal] = useState(false);
+  const [addHotelPasscode, setAddHotelPasscode] = useState('');
+  const [showAddHotelCodeModal, setShowAddHotelCodeModal] = useState(false);
+  const [newHotelCodeInput, setNewHotelCodeInput] = useState('');
+  const [addHotelError, setAddHotelError] = useState('');
+
+  // Fetch registered hotels for authorized hotel codes
   const fetchHotels = useCallback(async () => {
     if (!supabase || !session) return;
+    const authCodes = getAuthorizedCodes();
+    if (!authCodes || authCodes.length === 0) {
+      setHotels([]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('hotels')
         .select('*')
+        .in('hotel_code', authCodes)
         .order('hotel_name', { ascending: true });
 
       if (!error && data) {
         setHotels(data);
-        // If owner has exactly 1 hotel, default selectedHotelCode to that hotel's code
         if (data.length === 1) {
           setSelectedHotelCode(data[0].hotel_code);
         }
@@ -74,7 +96,7 @@ export default function Dashboard({ session, onLogout }) {
     } catch (err) {
       console.error('Fetch hotels error:', err);
     }
-  }, [session]);
+  }, [session, getAuthorizedCodes]);
 
   // Compute date range based on filter pill selection
   useEffect(() => {
@@ -179,14 +201,23 @@ export default function Dashboard({ session, onLogout }) {
     setChartData(formattedChart);
   }, []);
 
-  // Fetch Analytics Snapshots from Supabase with instant IndexedDB local cache fallback
+  // Fetch Analytics Snapshots from Supabase restricted to authorized Hotel Codes ONLY
   const fetchAnalyticsSnapshots = useCallback(async () => {
     if (!supabase || !session) return;
+    const authCodes = getAuthorizedCodes();
+    if (!authCodes || authCodes.length === 0) {
+      setSnapshots([]);
+      processSnapshotsData([]);
+      setLoading(false);
+      return;
+    }
     
     // 1. INSTANT DATA: Check IndexedDB local cache first (0ms latency!)
     const cachedRows = await getCachedSnapshots(selectedHotelCode, startDate, endDate);
     if (cachedRows && cachedRows.length > 0) {
-      processSnapshotsData(cachedRows);
+      // Filter cache by authorized codes
+      const filteredCache = cachedRows.filter(r => authCodes.includes(r.hotel_code));
+      processSnapshotsData(filteredCache);
     } else {
       setLoading(true);
     }
@@ -197,6 +228,7 @@ export default function Dashboard({ session, onLogout }) {
       let query = supabase
         .from('analytics_snapshots')
         .select('*')
+        .in('hotel_code', authCodes)
         .gte('snapshot_date', startDate)
         .lte('snapshot_date', endDate)
         .order('snapshot_date', { ascending: true });
@@ -225,7 +257,7 @@ export default function Dashboard({ session, onLogout }) {
         setLoading(false);
       }, remaining);
     }
-  }, [session, startDate, endDate, selectedHotelCode, processSnapshotsData]);
+  }, [session, startDate, endDate, selectedHotelCode, processSnapshotsData, getAuthorizedCodes]);
 
   useEffect(() => {
     fetchHotels();
@@ -268,6 +300,61 @@ export default function Dashboard({ session, onLogout }) {
     }
   };
 
+  const handleVerifyAddHotelPasscode = (e) => {
+    e.preventDefault();
+    if (addHotelPasscode.trim() === '972265') {
+      setShowAddHotelPassModal(false);
+      setAddHotelPasscode('');
+      setAddHotelError('');
+      setNewHotelCodeInput('');
+      setShowAddHotelCodeModal(true);
+    } else {
+      setAddHotelError('Incorrect Security Password! Access Denied.');
+    }
+  };
+
+  const handleConfirmAddHotelCode = async (e) => {
+    e.preventDefault();
+    const code = newHotelCodeInput.trim();
+    if (!code) {
+      setAddHotelError('Please enter a 5-character Hotel Code.');
+      return;
+    }
+
+    setLoading(true);
+    setAddHotelError('');
+
+    try {
+      const { data, error } = await supabase
+        .from('hotels')
+        .select('*')
+        .eq('hotel_code', code);
+
+      if (error || !data || data.length === 0) {
+        throw new Error(`Hotel Code "${code}" not found. Please check your Hotel Code and make sure Online Sync is turned on in your store app.`);
+      }
+
+      const hotelObj = data[0];
+      const currentAuthCodes = getAuthorizedCodes();
+      if (!currentAuthCodes.includes(code)) {
+        currentAuthCodes.push(code);
+        localStorage.setItem('bb_authorized_hotel_codes', JSON.stringify(currentAuthCodes));
+      }
+
+      setShowAddHotelCodeModal(false);
+      setNewHotelCodeInput('');
+      showToast(`Hotel "${hotelObj.hotel_name}" (${code}) added successfully!`, 'success');
+
+      fetchHotels();
+      fetchAnalyticsSnapshots();
+
+    } catch (err) {
+      setAddHotelError(err.message || 'Failed to add hotel code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const selectedHotelName = selectedHotelCode === 'ALL' 
     ? 'All Hotels Combined' 
     : (hotels.find(h => h.hotel_code === selectedHotelCode)?.hotel_name || selectedHotelCode);
@@ -285,6 +372,11 @@ export default function Dashboard({ session, onLogout }) {
         loading={loading}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onAddHotel={() => {
+          setShowAddHotelPassModal(true);
+          setAddHotelPasscode('');
+          setAddHotelError('');
+        }}
       />
 
       {/* Date Filter & PDF / Analytics Triggers */}
@@ -360,6 +452,69 @@ export default function Dashboard({ session, onLogout }) {
         <TopItemsTable topItems={aggregatedTopItems} />
 
       </div>
+
+      {/* Security Password Modal for Add Hotel (Password: 972265) */}
+      {showAddHotelPassModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '380px', padding: '28px', borderRadius: '24px', textAlign: 'center' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Security Password Required</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px 0', fontWeight: 600 }}>Enter security password:</p>
+            
+            {addHotelError && (
+              <div style={{ backgroundColor: 'rgba(244, 63, 94, 0.12)', border: '1px solid var(--rose-primary)', color: 'var(--rose-primary)', padding: '10px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, marginBottom: '16px' }}>
+                ⚠️ {addHotelError}
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyAddHotelPasscode} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <input
+                type="password"
+                required
+                autoFocus
+                value={addHotelPasscode}
+                onChange={(e) => setAddHotelPasscode(e.target.value)}
+                placeholder="Enter Security Password"
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '14px', textAlign: 'center', fontWeight: 700, outline: 'none' }}
+              />
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button type="button" onClick={() => setShowAddHotelPassModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '12px', backgroundColor: 'var(--bg-accent)', color: 'var(--text-secondary)', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: '14px' }}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, padding: '12px', fontSize: '14px' }}>Verify</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Hotel Code Modal */}
+      {showAddHotelCodeModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '380px', padding: '28px', borderRadius: '24px', textAlign: 'center' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 20px 0' }}>Add New Hotel</h3>
+            
+            {addHotelError && (
+              <div style={{ backgroundColor: 'rgba(244, 63, 94, 0.12)', border: '1px solid var(--rose-primary)', color: 'var(--rose-primary)', padding: '10px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, marginBottom: '16px' }}>
+                ⚠️ {addHotelError}
+              </div>
+            )}
+
+            <form onSubmit={handleConfirmAddHotelCode} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <input
+                type="text"
+                required
+                autoFocus
+                value={newHotelCodeInput}
+                onChange={(e) => setNewHotelCodeInput(e.target.value)}
+                placeholder=""
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '16px', textAlign: 'center', fontWeight: 800, letterSpacing: '1px', outline: 'none' }}
+              />
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button type="button" onClick={() => setShowAddHotelCodeModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '12px', backgroundColor: 'var(--bg-accent)', color: 'var(--text-secondary)', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: '14px' }}>Cancel</button>
+                <button type="submit" disabled={loading} className="btn-primary" style={{ flex: 1, padding: '12px', fontSize: '14px' }}>{loading ? 'Verifying...' : 'Add Hotel'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Floating Toast Notification */}
       {toast.show && (

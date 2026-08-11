@@ -1,17 +1,36 @@
 import React, { useState } from 'react';
 import { initSupabase } from '../supabaseClient';
-import { Lock, Mail } from 'lucide-react';
+import { Lock, Mail, Key } from 'lucide-react';
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState(localStorage.getItem('bb_user_email') || '');
   const [password, setPassword] = useState('');
+  const [hotelCodesInput, setHotelCodesInput] = useState(localStorage.getItem('bb_user_hotel_codes_input') || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please enter your email address and password.');
+    if (!email.trim()) {
+      setError('Email address is required.');
+      return;
+    }
+    if (!password.trim()) {
+      setError('Password is required.');
+      return;
+    }
+    if (!hotelCodesInput.trim()) {
+      setError('Hotel Code is required. Please enter your Hotel Code.');
+      return;
+    }
+
+    const parsedCodes = hotelCodesInput
+      .split(',')
+      .map(c => c.trim())
+      .filter(Boolean);
+
+    if (parsedCodes.length === 0) {
+      setError('Hotel Code is required. Please enter your Hotel Code.');
       return;
     }
 
@@ -21,7 +40,7 @@ export default function Login({ onLoginSuccess }) {
     try {
       const client = initSupabase();
       if (!client) {
-        throw new Error('Cloud database connection failed.');
+        throw new Error('Connection failed. Please check your internet connection.');
       }
 
       const { data, error: authErr } = await client.auth.signInWithPassword({
@@ -33,10 +52,31 @@ export default function Login({ onLoginSuccess }) {
         throw new Error(authErr.message || 'Invalid Email or Password');
       }
 
+      // Verify EVERY entered Hotel Code exists
+      const { data: matchedHotels, error: hotelErr } = await client
+        .from('hotels')
+        .select('hotel_code, hotel_name')
+        .in('hotel_code', parsedCodes);
+
+      const foundCodes = (matchedHotels || []).map(h => h.hotel_code);
+      const allCodesValid = parsedCodes.length > 0 && parsedCodes.every(code => foundCodes.includes(code));
+
+      if (hotelErr || !allCodesValid) {
+        // Sign out immediately so session is not active for unauthorized codes
+        await client.auth.signOut().catch(() => {});
+        localStorage.removeItem('bb_authorized_hotel_codes');
+        throw new Error('Invalid Hotel Code. Please check your Hotel Code and try again.');
+      }
+
+      const validCodes = Array.from(new Set(foundCodes));
+
       localStorage.setItem('bb_user_email', email.trim());
-      onLoginSuccess(data.session);
+      localStorage.setItem('bb_user_hotel_codes_input', hotelCodesInput.trim());
+      localStorage.setItem('bb_authorized_hotel_codes', JSON.stringify(validCodes));
+
+      onLoginSuccess(data.session, validCodes);
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || 'Login failed. Please check your credentials and Hotel Code.');
     } finally {
       setLoading(false);
     }
@@ -93,7 +133,7 @@ export default function Login({ onLoginSuccess }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Owner Email */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -102,7 +142,6 @@ export default function Login({ onLoginSuccess }) {
               <Mail size={18} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
               <input
                 type="email"
-                required
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -129,10 +168,34 @@ export default function Login({ onLoginSuccess }) {
               <Lock size={18} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
               <input
                 type="password"
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
+                style={{
+                  width: '100%',
+                  padding: '14px 14px 14px 40px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--bg-main)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Hotel Code(s) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>HOTEL CODE(S)</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Key size={18} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                value={hotelCodesInput}
+                onChange={(e) => setHotelCodesInput(e.target.value)}
+                placeholder=""
                 style={{
                   width: '100%',
                   padding: '14px 14px 14px 40px',
@@ -154,7 +217,7 @@ export default function Login({ onLoginSuccess }) {
             className="btn-primary"
             style={{ marginTop: '8px', padding: '14px', fontSize: '15px' }}
           >
-            {loading ? 'Signing in...' : 'Sign In to Dashboard'}
+            {loading ? 'Validating Hotel Codes...' : 'Sign In to Dashboard'}
           </button>
 
         </form>

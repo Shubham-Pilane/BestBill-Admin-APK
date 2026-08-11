@@ -36,11 +36,14 @@ Set-Location "d:\BestBill-Admin\android"
 
 # Copy compiled APK to root of BestBill-Admin
 $outputApk = "d:\BestBill-Admin\android\app\build\outputs\apk\debug\app-debug.apk"
+$targetName = "d:\BestBill-Admin\BestBill-Admin.apk"
 if (Test-Path $outputApk) {
-    Copy-Item -Path $outputApk -Destination "d:\BestBill-Admin\BestBill-Admin.apk" -Force
+    Copy-Item -Path $outputApk -Destination $targetName -Force
+    (Get-Item $targetName).LastWriteTime = Get-Date
     Write-Host "----------------------------------------"
     Write-Host "UPDATED BESTBILL ADMIN APK COMPILED SUCCESSFULLY!"
-    Write-Host "Location: d:\BestBill-Admin\BestBill-Admin.apk"
+    Write-Host "Location: $targetName"
+    Write-Host "Timestamp: $(Get-Date)"
     Write-Host "----------------------------------------"
 } else {
     Write-Host "Build failed. Check error log above."

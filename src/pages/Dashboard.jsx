@@ -145,9 +145,10 @@ export default function Dashboard({ session, onLogout }) {
   const processSnapshotsData = useCallback((rawRows) => {
     const latestMap = {};
     (rawRows || []).forEach((snap) => {
-      const key = `${snap.hotel_code}_${snap.snapshot_date}`;
-      if (!latestMap[key] || new Date(snap.synced_at || snap.created_at) > new Date(latestMap[key].synced_at || latestMap[key].created_at)) {
-        latestMap[key] = snap;
+      // Key by owner_id + snapshot_date (or hotel_code + date) to ensure exactly 1 single record per date
+      const storeKey = snap.owner_id ? `${snap.owner_id}_${snap.snapshot_date}` : `${snap.hotel_code}_${snap.snapshot_date}`;
+      if (!latestMap[storeKey] || new Date(snap.synced_at || snap.created_at) > new Date(latestMap[storeKey].synced_at || latestMap[storeKey].created_at)) {
+        latestMap[storeKey] = snap;
       }
     });
     const rows = Object.values(latestMap);

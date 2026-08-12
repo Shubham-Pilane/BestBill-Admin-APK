@@ -190,7 +190,7 @@ export default function Header({
               <option value="ALL">🏨 All Hotels Combined ({hotels.length} Hotels)</option>
               {hotels.map((h) => (
                 <option key={h.hotel_code} value={h.hotel_code}>
-                  🏨 {h.hotel_name} ({h.hotel_code})
+                  🏨 {h.hotel_name}
                 </option>
               ))}
             </select>

@@ -203,7 +203,7 @@ export default function Dashboard({ session, onLogout }) {
   }, []);
 
   // Fetch Analytics Snapshots from Supabase restricted to authorized Hotel Codes ONLY
-  const fetchAnalyticsSnapshots = useCallback(async () => {
+  const fetchAnalyticsSnapshots = useCallback(async (forceRefresh = false) => {
     if (!supabase || !session) return;
     const authCodes = getAuthorizedCodes();
     if (!authCodes || authCodes.length === 0) {
@@ -213,12 +213,15 @@ export default function Dashboard({ session, onLogout }) {
       return;
     }
     
-    // 1. INSTANT DATA: Check IndexedDB local cache first (0ms latency!)
-    const cachedRows = await getCachedSnapshots(selectedHotelCode, startDate, endDate);
-    if (cachedRows && cachedRows.length > 0) {
-      // Filter cache by authorized codes
-      const filteredCache = cachedRows.filter(r => authCodes.includes(r.hotel_code));
-      processSnapshotsData(filteredCache);
+    // 1. INSTANT DATA: Check IndexedDB local cache first (0ms latency) unless forceRefresh is requested
+    if (!forceRefresh) {
+      const cachedRows = await getCachedSnapshots(selectedHotelCode, startDate, endDate);
+      if (cachedRows && cachedRows.length > 0) {
+        const filteredCache = cachedRows.filter(r => authCodes.includes(r.hotel_code));
+        processSnapshotsData(filteredCache);
+      } else {
+        setLoading(true);
+      }
     } else {
       setLoading(true);
     }
@@ -243,17 +246,26 @@ export default function Dashboard({ session, onLogout }) {
 
       const rawRows = data || [];
       
-      // Save fetched records to IndexedDB local cache (auto-purges records older than 2 years)
+      // Save fetched records to IndexedDB local cache
       await saveSnapshotsToCache(rawRows);
 
       // Render fresh data
       processSnapshotsData(rawRows);
 
+      if (forceRefresh) {
+        showToast('Analytics data refreshed from cloud!', 'success');
+      }
+
     } catch (err) {
       console.error('Fetch snapshots error:', err.message);
+      if (forceRefresh) {
+        showToast('Failed to refresh data: ' + err.message, 'error');
+      }
     } finally {
+      // Ensure smooth rotation animation (min 700ms on manual refresh)
       const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 200 - elapsed);
+      const minDuration = forceRefresh ? 700 : 200;
+      const remaining = Math.max(0, minDuration - elapsed);
       setTimeout(() => {
         setLoading(false);
       }, remaining);
@@ -369,7 +381,7 @@ export default function Dashboard({ session, onLogout }) {
         selectedHotelCode={selectedHotelCode}
         onSelectHotel={setSelectedHotelCode}
         onLogout={onLogout}
-        onRefresh={fetchAnalyticsSnapshots}
+        onRefresh={() => fetchAnalyticsSnapshots(true)}
         loading={loading}
         theme={theme}
         onToggleTheme={toggleTheme}

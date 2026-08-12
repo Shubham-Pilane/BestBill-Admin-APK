@@ -75,11 +75,12 @@ export async function saveSnapshotsToCache(snapshotsArray) {
 /**
  * Retrieve cached snapshots for a given hotel and date range instantly
  */
-export async function getCachedSnapshots(hotelCode, startDate, endDate) {
+export async function getCachedSnapshots(hotelCode, startDate, endDate, authCodes = []) {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
+    const authList = Array.isArray(authCodes) ? authCodes : [];
 
     return new Promise((resolve) => {
       const req = store.getAll();
@@ -89,6 +90,8 @@ export async function getCachedSnapshots(hotelCode, startDate, endDate) {
 
         const filtered = items.filter((snap) => {
           if (!snap.snapshot_date || snap.snapshot_date < cutoff) return false;
+          if (authList.length > 0 && !authList.includes(snap.hotel_code)) return false;
+
           const matchHotel = hotelCode === 'ALL' || snap.hotel_code === hotelCode;
           const matchDate = snap.snapshot_date >= startDate && snap.snapshot_date <= endDate;
           return matchHotel && matchDate;

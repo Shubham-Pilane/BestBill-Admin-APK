@@ -10,6 +10,13 @@ import { getCachedSnapshots, saveSnapshotsToCache } from '../utils/localCache';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 
+function getLocalDateString(d = new Date()) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function Dashboard({ session, onLogout }) {
   const [hotels, setHotels] = useState([]);
   const [selectedHotelCode, setSelectedHotelCode] = useState('ALL');
@@ -27,7 +34,7 @@ export default function Dashboard({ session, onLogout }) {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
   
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getLocalDateString(new Date());
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
 
@@ -136,8 +143,8 @@ export default function Dashboard({ session, onLogout }) {
     }
 
     if (activeFilter !== 'custom') {
-      setStartDate(s.toISOString().slice(0, 10));
-      setEndDate(e.toISOString().slice(0, 10));
+      setStartDate(getLocalDateString(s));
+      setEndDate(getLocalDateString(e));
     }
   }, [activeFilter]);
 
@@ -145,8 +152,8 @@ export default function Dashboard({ session, onLogout }) {
   const processSnapshotsData = useCallback((rawRows) => {
     const latestMap = {};
     (rawRows || []).forEach((snap) => {
-      // Key by owner_id + snapshot_date (or hotel_code + date) to ensure exactly 1 single record per date
-      const storeKey = snap.owner_id ? `${snap.owner_id}_${snap.snapshot_date}` : `${snap.hotel_code}_${snap.snapshot_date}`;
+      // Key by hotel_code + snapshot_date to ensure each store branch has 1 snapshot per date
+      const storeKey = `${snap.hotel_code || snap.owner_id}_${snap.snapshot_date}`;
       if (!latestMap[storeKey] || new Date(snap.synced_at || snap.created_at) > new Date(latestMap[storeKey].synced_at || latestMap[storeKey].created_at)) {
         latestMap[storeKey] = snap;
       }
@@ -215,7 +222,7 @@ export default function Dashboard({ session, onLogout }) {
     
     // 1. INSTANT DATA: Check IndexedDB local cache first (0ms latency) unless forceRefresh is requested
     if (!forceRefresh) {
-      const cachedRows = await getCachedSnapshots(selectedHotelCode, startDate, endDate);
+      const cachedRows = await getCachedSnapshots(selectedHotelCode, startDate, endDate, authCodes);
       if (cachedRows && cachedRows.length > 0) {
         const filteredCache = cachedRows.filter(r => authCodes.includes(r.hotel_code));
         processSnapshotsData(filteredCache);

@@ -45,13 +45,14 @@ export default function Header({
           </div>
 
           {/* Quick Header Actions: Add Hotel, Theme Toggle, Refresh & Logout */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <div className="header-actions-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             
             {/* Add Hotel Button */}
             {onAddHotel && (
               <button
                 onClick={onAddHotel}
                 title="Add New Hotel Code"
+                className="header-action-btn"
                 style={{
                   padding: '8px 12px',
                   display: 'flex',
@@ -68,7 +69,7 @@ export default function Header({
                 }}
               >
                 <Plus size={16} color="var(--emerald-primary)" />
-                <span style={{ fontSize: '12px' }}>Add Hotel</span>
+                <span className="header-btn-text" style={{ fontSize: '12px' }}>Add Hotel</span>
               </button>
             )}
 
@@ -76,6 +77,7 @@ export default function Header({
             <button 
               onClick={onToggleTheme} 
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              className="header-action-btn"
               style={{ 
                 padding: '8px 12px', 
                 display: 'flex', 
@@ -95,12 +97,12 @@ export default function Header({
               {theme === 'dark' ? (
                 <>
                   <Sun size={16} color="var(--amber-primary)" />
-                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Light</span>
+                  <span className="header-btn-text" style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Light</span>
                 </>
               ) : (
                 <>
                   <Moon size={16} color="var(--indigo-primary)" />
-                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Dark</span>
+                  <span className="header-btn-text" style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Dark</span>
                 </>
               )}
             </button>
@@ -110,6 +112,7 @@ export default function Header({
               onClick={onRefresh} 
               disabled={loading}
               title="Refresh Data"
+              className="header-action-btn"
               style={{ 
                 padding: '8px 12px', 
                 display: 'flex', 
@@ -135,7 +138,7 @@ export default function Header({
                   transition: 'transform 0.3s ease'
                 }} 
               />
-              <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+              <span className="header-btn-text" style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
                 {loading ? 'Refreshing...' : 'Refresh'}
               </span>
             </button>
@@ -144,6 +147,7 @@ export default function Header({
             <button 
               onClick={onLogout} 
               title="Logout"
+              className="header-action-btn"
               style={{ 
                 padding: '8px 12px', 
                 display: 'flex', 
@@ -160,7 +164,7 @@ export default function Header({
               }}
             >
               <LogOut size={16} />
-              <span>Logout</span>
+              <span className="header-btn-text">Logout</span>
             </button>
           </div>
         </div>

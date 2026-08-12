@@ -205,4 +205,17 @@ input, select, button {
   animation: spin 0.8s linear infinite;
 }
 
+/* Responsive Mobile Header Helpers */
+@media (max-width: 580px) {
+  .header-btn-text {
+    display: none !important;
+  }
+  .header-actions-wrapper {
+    gap: 5px !important;
+  }
+  .header-action-btn {
+    padding: 8px 10px !important;
+  }
+}
+
 

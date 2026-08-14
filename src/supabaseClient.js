@@ -17,11 +17,16 @@ export let supabase = (activeUrl && activeKey)
   ? createClient(activeUrl, activeKey) 
   : null;
 
+export let supabaseAnon = (activeUrl && activeKey)
+  ? createClient(activeUrl, activeKey, { auth: { persistSession: false } })
+  : null;
+
 export function initSupabase(url = activeUrl, key = activeKey) {
   if (!url || !key) return null;
   localStorage.setItem('bb_supabase_url', url.trim());
   localStorage.setItem('bb_supabase_key', key.trim());
   supabase = createClient(url.trim(), key.trim());
+  supabaseAnon = createClient(url.trim(), key.trim(), { auth: { persistSession: false } });
   return supabase;
 }
 
@@ -30,4 +35,6 @@ export function clearSupabaseSession() {
   localStorage.removeItem('bb_supabase_key');
   localStorage.removeItem('bb_user_email');
   supabase = (defaultUrl && defaultKey) ? createClient(defaultUrl, defaultKey) : null;
+  supabaseAnon = (defaultUrl && defaultKey) ? createClient(defaultUrl, defaultKey, { auth: { persistSession: false } }) : null;
 }
+

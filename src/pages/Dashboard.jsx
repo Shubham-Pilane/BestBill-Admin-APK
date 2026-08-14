@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase, supabaseAnon } from '../supabaseClient';
 import Header from '../components/Header';
 import DateFilter from '../components/DateFilter';
 import MetricsCards from '../components/MetricsCards';
@@ -65,7 +65,8 @@ export default function Dashboard({ session, onLogout }) {
   // Helper to read authorized Hotel Codes array from localStorage
   const getAuthorizedCodes = useCallback(() => {
     try {
-      return JSON.parse(localStorage.getItem('bb_authorized_hotel_codes') || '[]');
+      const raw = JSON.parse(localStorage.getItem('bb_authorized_hotel_codes') || '[]');
+      return Array.from(new Set((Array.isArray(raw) ? raw : []).map(c => String(c).trim()).filter(Boolean)));
     } catch (e) {
       return [];
     }
@@ -80,7 +81,7 @@ export default function Dashboard({ session, onLogout }) {
 
   // Fetch registered hotels for authorized hotel codes
   const fetchHotels = useCallback(async () => {
-    if (!supabase || !session) return;
+    if (!session) return;
     const authCodes = getAuthorizedCodes();
     if (!authCodes || authCodes.length === 0) {
       setHotels([]);
@@ -88,7 +89,8 @@ export default function Dashboard({ session, onLogout }) {
     }
 
     try {
-      const { data, error } = await supabase
+      const queryClient = supabaseAnon || supabase;
+      const { data, error } = await queryClient
         .from('hotels')
         .select('*')
         .in('hotel_code', authCodes)
@@ -236,7 +238,8 @@ export default function Dashboard({ session, onLogout }) {
     const startTime = Date.now();
 
     try {
-      let query = supabase
+      const queryClient = supabaseAnon || supabase;
+      let query = queryClient
         .from('analytics_snapshots')
         .select('*')
         .in('hotel_code', authCodes)
@@ -248,8 +251,29 @@ export default function Dashboard({ session, onLogout }) {
         query = query.eq('hotel_code', selectedHotelCode);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      let { data, error } = await query;
+      
+      // Fallback query if data is empty but authCodes are specified
+      if ((!data || data.length === 0) && supabase) {
+        let fallbackQuery = supabase
+          .from('analytics_snapshots')
+          .select('*')
+          .in('hotel_code', authCodes)
+          .gte('snapshot_date', startDate)
+          .lte('snapshot_date', endDate)
+          .order('snapshot_date', { ascending: true });
+
+        if (selectedHotelCode !== 'ALL') {
+          fallbackQuery = fallbackQuery.eq('hotel_code', selectedHotelCode);
+        }
+
+        const fallbackRes = await fallbackQuery;
+        if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+          data = fallbackRes.data;
+        }
+      }
+
+      if (error && (!data || data.length === 0)) throw error;
 
       const rawRows = data || [];
       
@@ -345,7 +369,8 @@ export default function Dashboard({ session, onLogout }) {
     setAddHotelError('');
 
     try {
-      const { data, error } = await supabase
+      const queryClient = supabaseAnon || supabase;
+      const { data, error } = await queryClient
         .from('hotels')
         .select('*')
         .eq('hotel_code', code);
@@ -375,6 +400,23 @@ export default function Dashboard({ session, onLogout }) {
     }
   };
 
+  const handleRemoveHotelCode = (codeToRemove) => {
+    const hotelObj = hotels.find(h => h.hotel_code === codeToRemove);
+    const hotelName = hotelObj ? hotelObj.hotel_name : codeToRemove;
+    if (window.confirm(`Are you sure you want to remove "${hotelName}" from your profile? This will NOT delete any data from the database.`)) {
+      const currentAuthCodes = getAuthorizedCodes();
+      const updatedCodes = currentAuthCodes.filter(c => c !== codeToRemove);
+      localStorage.setItem('bb_authorized_hotel_codes', JSON.stringify(updatedCodes));
+      
+      if (selectedHotelCode === codeToRemove) {
+        setSelectedHotelCode('ALL');
+      }
+      showToast(`Hotel "${hotelName}" removed from profile access.`, 'success');
+      fetchHotels();
+      fetchAnalyticsSnapshots();
+    }
+  };
+
   const selectedHotelName = selectedHotelCode === 'ALL' 
     ? 'All Hotels Combined' 
     : (hotels.find(h => h.hotel_code === selectedHotelCode)?.hotel_name || selectedHotelCode);
@@ -397,6 +439,7 @@ export default function Dashboard({ session, onLogout }) {
           setAddHotelPasscode('');
           setAddHotelError('');
         }}
+        onRemoveHotel={handleRemoveHotelCode}
       />
 
       {/* Date Filter & PDF / Analytics Triggers */}

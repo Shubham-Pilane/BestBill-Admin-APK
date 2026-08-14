@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { initSupabase } from '../supabaseClient';
+import { initSupabase, supabaseAnon } from '../supabaseClient';
 import { Lock, Mail, Key } from 'lucide-react';
 
 export default function Login({ onLoginSuccess }) {
@@ -52,8 +52,9 @@ export default function Login({ onLoginSuccess }) {
         throw new Error(authErr.message || 'Invalid Email or Password');
       }
 
-      // Verify EVERY entered Hotel Code exists
-      const { data: matchedHotels, error: hotelErr } = await client
+      // Verify EVERY entered Hotel Code exists using unauthenticated query client
+      const fetchClient = supabaseAnon || client;
+      const { data: matchedHotels, error: hotelErr } = await fetchClient
         .from('hotels')
         .select('hotel_code, hotel_name')
         .in('hotel_code', parsedCodes);

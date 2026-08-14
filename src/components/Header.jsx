@@ -1,5 +1,5 @@
-import React from 'react';
-import { Building2, LogOut, RefreshCw, Sun, Moon, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2, LogOut, RefreshCw, Sun, Moon, Plus, Trash2, ChevronDown } from 'lucide-react';
 
 export default function Header({ 
   hotels, 
@@ -10,13 +10,16 @@ export default function Header({
   loading,
   theme,
   onToggleTheme,
-  onAddHotel
+  onAddHotel,
+  onRemoveHotel
 }) {
   const isMultiHotel = hotels.length > 1;
   const singleHotel = hotels.length === 1 ? hotels[0] : null;
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   return (
-    <header className="glass-card" style={{ padding: '14px 16px', marginBottom: '16px', borderRadius: '16px', overflow: 'hidden' }}>
+    <header className="glass-card" style={{ padding: '14px 16px', marginBottom: '16px', borderRadius: '16px', overflow: 'visible', position: 'relative', zIndex: 100 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         
         {/* Top Row: Brand & Quick Action Buttons */}
@@ -169,35 +172,136 @@ export default function Header({
           </div>
         </div>
 
-        {/* Dropdown ONLY shown if user is associated with MULTIPLE hotels */}
+        {/* Custom Hotel Dropdown with inline Remove buttons */}
         {isMultiHotel && (
           <div style={{ position: 'relative', width: '100%' }}>
-            <Building2 size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--emerald-primary)', pointerEvents: 'none', zIndex: 1 }} />
-            <select
-              value={selectedHotelCode}
-              onChange={(e) => onSelectHotel(e.target.value)}
+            <button
+              type="button"
+              onClick={() => setShowDropdown(!showDropdown)}
               style={{
                 width: '100%',
                 backgroundColor: 'var(--bg-accent)',
                 color: 'var(--text-primary)',
                 border: '1px solid var(--border-color)',
-                padding: '10px 14px 10px 36px',
+                padding: '10px 14px',
                 borderRadius: '12px',
                 fontSize: '13px',
                 fontWeight: 700,
                 outline: 'none',
                 cursor: 'pointer',
-                textOverflow: 'ellipsis',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 boxSizing: 'border-box'
               }}
             >
-              <option value="ALL">🏨 All Hotels Combined ({hotels.length} Hotels)</option>
-              {hotels.map((h) => (
-                <option key={h.hotel_code} value={h.hotel_code}>
-                  🏨 {h.hotel_name}
-                </option>
-              ))}
-            </select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <Building2 size={16} style={{ color: 'var(--emerald-primary)', flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedHotelCode === 'ALL'
+                    ? `🏨 All Hotels Combined (${hotels.length} Hotels)`
+                    : `🏨 ${hotels.find(h => h.hotel_code === selectedHotelCode)?.hotel_name || selectedHotelCode}`}
+                </span>
+              </div>
+              <ChevronDown size={16} style={{ color: 'var(--text-muted)', transform: showDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
+            </button>
+
+            {showDropdown && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+                  zIndex: 99999,
+                  overflow: 'hidden',
+                  padding: '8px'
+                }}
+              >
+                <div
+                  onClick={() => {
+                    onSelectHotel('ALL');
+                    setShowDropdown(false);
+                  }}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: selectedHotelCode === 'ALL' ? 800 : 600,
+                    backgroundColor: selectedHotelCode === 'ALL' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                    color: selectedHotelCode === 'ALL' ? 'var(--emerald-primary)' : 'var(--text-primary)',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '4px'
+                  }}
+                >
+                  🏨 All Hotels Combined ({hotels.length} Hotels)
+                </div>
+
+                <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {hotels.map((h) => (
+                    <div
+                      key={h.hotel_code}
+                      onClick={() => {
+                        onSelectHotel(h.hotel_code);
+                        setShowDropdown(false);
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        backgroundColor: selectedHotelCode === h.hotel_code ? 'rgba(14, 165, 233, 0.15)' : 'var(--bg-main)',
+                        border: '1px solid var(--border-color)',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: selectedHotelCode === h.hotel_code ? '#0ea5e9' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          🏨 {h.hotel_name}
+                        </span>
+                      </div>
+
+                      {onRemoveHotel && (
+                        <button
+                          type="button"
+                          title={`Remove ${h.hotel_name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveHotel(h.hotel_code);
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                            color: '#f43f5e',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            flexShrink: 0
+                          }}
+                        >
+                          <Trash2 size={13} /> Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -205,3 +309,4 @@ export default function Header({
     </header>
   );
 }
+

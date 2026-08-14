@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Download, TrendingUp, Calendar, Filter, ChevronLeft, ChevronRight, Wallet, CreditCard, IndianRupee } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { supabase, supabaseAnon } from '../supabaseClient';
 import { getCachedSnapshots, saveSnapshotsToCache } from '../utils/localCache';
 import { exportRevenueAnalyticsPdf } from '../utils/pdfExporter';
 
@@ -22,6 +22,16 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
   const rowsPerPage = 10;
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  // Helper to read authorized Hotel Codes array from localStorage
+  const getAuthorizedCodes = useCallback(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('bb_authorized_hotel_codes') || '[]');
+      return Array.from(new Set((Array.isArray(raw) ? raw : []).map(c => String(c).trim()).filter(Boolean)));
+    } catch (e) {
+      return [];
+    }
+  }, []);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -71,10 +81,16 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
 
   // Fetch & process daily revenue records
   const fetchRevenueData = useCallback(async () => {
-    if (!isOpen || !session || !supabase) return;
+    if (!isOpen || !session) return;
+    const authCodes = getAuthorizedCodes();
+    if (!authCodes || authCodes.length === 0) {
+      setDailyRows([]);
+      setLoading(false);
+      return;
+    }
 
     // 1. Instant cache fallback
-    const cachedRows = await getCachedSnapshots(selectedHotelCode, startDate, endDate);
+    const cachedRows = await getCachedSnapshots(selectedHotelCode, startDate, endDate, authCodes);
     if (cachedRows && cachedRows.length > 0) {
       processDailyData(cachedRows);
     } else {
@@ -82,9 +98,11 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
     }
 
     try {
-      let query = supabase
+      const queryClient = supabaseAnon || supabase;
+      let query = queryClient
         .from('analytics_snapshots')
         .select('*')
+        .in('hotel_code', authCodes)
         .gte('snapshot_date', startDate)
         .lte('snapshot_date', endDate)
         .order('snapshot_date', { ascending: false });
@@ -93,8 +111,29 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
         query = query.eq('hotel_code', selectedHotelCode);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      let { data, error } = await query;
+      
+      // Fallback if data is empty
+      if ((!data || data.length === 0) && supabase) {
+        let fallbackQuery = supabase
+          .from('analytics_snapshots')
+          .select('*')
+          .in('hotel_code', authCodes)
+          .gte('snapshot_date', startDate)
+          .lte('snapshot_date', endDate)
+          .order('snapshot_date', { ascending: false });
+
+        if (selectedHotelCode !== 'ALL') {
+          fallbackQuery = fallbackQuery.eq('hotel_code', selectedHotelCode);
+        }
+
+        const fallbackRes = await fallbackQuery;
+        if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+          data = fallbackRes.data;
+        }
+      }
+
+      if (error && (!data || data.length === 0)) throw error;
 
       const rawRows = data || [];
       await saveSnapshotsToCache(rawRows);
@@ -104,7 +143,7 @@ export default function RevenueAnalyticsModal({ isOpen, onClose, selectedHotelCo
     } finally {
       setLoading(false);
     }
-  }, [isOpen, session, startDate, endDate, selectedHotelCode]);
+  }, [isOpen, session, startDate, endDate, selectedHotelCode, getAuthorizedCodes]);
 
   // Process raw rows by deduplicating and grouping per date descending
   const processDailyData = (rawRows) => {
